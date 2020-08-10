@@ -52,12 +52,17 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Map;
+import java.util.HashMap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * The {@link KafkaToBigQuery} pipeline is a streaming pipeline which ingests data in JSON format
@@ -114,18 +119,18 @@ public class KafkaToBigQuery {
 
   /** The tag for the main output for the UDF. */
   public static final TupleTag<FailsafeElement<KV<String, String>, String>> UDF_OUT =
-      new TupleTag<FailsafeElement<KV<String, String>, String>>() {};
+          new TupleTag<FailsafeElement<KV<String, String>, String>>() {};
 
   /** The tag for the main output of the json transformation. */
   public static final TupleTag<TableRow> TRANSFORM_OUT = new TupleTag<TableRow>() {};
 
   /** The tag for the dead-letter output of the udf. */
   public static final TupleTag<FailsafeElement<KV<String, String>, String>> UDF_DEADLETTER_OUT =
-      new TupleTag<FailsafeElement<KV<String, String>, String>>() {};
+          new TupleTag<FailsafeElement<KV<String, String>, String>>() {};
 
   /** The tag for the dead-letter output of the json to table row transform. */
   public static final TupleTag<FailsafeElement<KV<String, String>, String>>
-      TRANSFORM_DEADLETTER_OUT = new TupleTag<FailsafeElement<KV<String, String>, String>>() {};
+          TRANSFORM_DEADLETTER_OUT = new TupleTag<FailsafeElement<KV<String, String>, String>>() {};
 
   /** The default suffix for error tables if dead letter table is not specified. */
   public static final String DEFAULT_DEADLETTER_TABLE_SUFFIX = "_error_records";
@@ -151,8 +156,8 @@ public class KafkaToBigQuery {
     void setInputTopic(ValueProvider<String> value);
 
     @Description(
-        "The dead-letter table to output to within BigQuery in <project-id>:<dataset>.<table> "
-            + "format. If it doesn't exist, it will be created during pipeline execution.")
+            "The dead-letter table to output to within BigQuery in <project-id>:<dataset>.<table> "
+                    + "format. If it doesn't exist, it will be created during pipeline execution.")
     ValueProvider<String> getOutputDeadletterTable();
 
     void setOutputDeadletterTable(ValueProvider<String> value);
@@ -187,8 +192,8 @@ public class KafkaToBigQuery {
 
     // Register the coder for pipeline
     FailsafeElementCoder<KV<String, String>, String> coder =
-        FailsafeElementCoder.of(
-            KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), StringUtf8Coder.of());
+            FailsafeElementCoder.of(
+                    KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), StringUtf8Coder.of());
 
     CoderRegistry coderRegistry = pipeline.getCoderRegistry();
     coderRegistry.registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
@@ -202,63 +207,75 @@ public class KafkaToBigQuery {
      *  3) Write successful records out to BigQuery
      *  4) Write failed records out to BigQuery
      */
-    PCollectionTuple transformOut =
-        pipeline
-            /*
-             * Step #1: Read messages in from Kafka
-             */
-            .apply(
-                "ReadFromKafka",
-                KafkaIO.<String, String>read()
-                    .withBootstrapServers(options.getBootstrapServers())
-                    .withTopic(options.getInputTopic())
-                    .withKeyDeserializer(StringDeserializer.class)
-                    .withValueDeserializer(StringDeserializer.class)
-                    // NumSplits is hard-coded to 1 for single-partition use cases (e.g., Debezium
-                    // Change Data Capture). Once Dataflow dynamic templates are available, this can
-                    // be deprecated.
-                    .withNumSplits(1)
-                    .withoutMetadata())
+    Map<String, Object> props = new HashMap<>();
+    props.put("sasl.jaas.config", "SASL_SSL");
+    props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule   required username=\"ISEQCYNHRK6SYHKP\"   password=\"OQ49NUPAiCJVaKObAPvEABhju443BCMipfbiflvL4R9QWV9h/JH18xWcuJ4Kugfs\"");
+    props.put("ssl.endpoint.identification.algorithm", "https");
+    props.put("sasl.mechanism", "PLAIN");
 
-            /*
-             * Step #2: Transform the Kafka Messages into TableRows
-             */
-            .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+
+
+    PCollectionTuple transformOut =
+            pipeline
+                    /*
+                     * Step #1: Read messages in from Kafka
+                     */
+                    .apply(
+                            "ReadFromKafka",
+                            KafkaIO.<String, String>read()
+                                    .updateConsumerProperties(props)
+                                    .withBootstrapServers(options.getBootstrapServers())
+                                    .withTopic(options.getInputTopic())
+                                    .withKeyDeserializer(StringDeserializer.class)
+
+                                    .withValueDeserializer(StringDeserializer.class)
+                                    // NumSplits is hard-coded to 1 for single-partition use cases (e.g., Debezium
+                                    // Change Data Capture). Once Dataflow dynamic templates are available, this can
+                                    // be deprecated.
+                                    .withNumSplits(1)
+                                    .withoutMetadata()
+
+                    )
+
+                    /*
+                     * Step #2: Transform the Kafka Messages into TableRows
+                     */
+                    .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
 
     /*
      * Step #3: Write the successful records out to BigQuery
      */
     transformOut
-        .get(TRANSFORM_OUT)
-        .apply(
-            "WriteSuccessfulRecords",
-            BigQueryIO.writeTableRows()
-                .withoutValidation()
-                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-                .to(options.getOutputTableSpec()));
+            .get(TRANSFORM_OUT)
+            .apply(
+                    "WriteSuccessfulRecords",
+                    BigQueryIO.writeTableRows()
+                            .withoutValidation()
+                            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                            .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+                            .to(options.getOutputTableSpec()));
 
     /*
      * Step #4: Write failed records out to BigQuery
      */
     PCollectionList.of(transformOut.get(UDF_DEADLETTER_OUT))
-        .and(transformOut.get(TRANSFORM_DEADLETTER_OUT))
-        .apply("Flatten", Flatten.pCollections())
-        .apply(
-            "WriteFailedRecords",
-            WriteKafkaMessageErrors.newBuilder()
-                .setErrorRecordsTable(
-                    ValueProviderUtils.maybeUseDefaultDeadletterTable(
-                        options.getOutputDeadletterTable(),
-                        options.getOutputTableSpec(),
-                        DEFAULT_DEADLETTER_TABLE_SUFFIX))
-                .setErrorRecordsTableSchema(ResourceUtils.getDeadletterTableSchemaJson())
-                .build());
+            .and(transformOut.get(TRANSFORM_DEADLETTER_OUT))
+            .apply("Flatten", Flatten.pCollections())
+            .apply(
+                    "WriteFailedRecords",
+                    WriteKafkaMessageErrors.newBuilder()
+                            .setErrorRecordsTable(
+                                    ValueProviderUtils.maybeUseDefaultDeadletterTable(
+                                            options.getOutputDeadletterTable(),
+                                            options.getOutputTableSpec(),
+                                            DEFAULT_DEADLETTER_TABLE_SUFFIX))
+                            .setErrorRecordsTableSchema(ResourceUtils.getDeadletterTableSchemaJson())
+                            .build());
     return pipeline.run();
   }
 
   static class KafkaRecordToFailsafeElementFn
-      extends DoFn<KV<String, String>, FailsafeElement<KV<String, String>, String>> {
+          extends DoFn<KV<String, String>, FailsafeElement<KV<String, String>, String>> {
     @ProcessElement
     public void processElement(ProcessContext context) {
       KV<String, String> message = context.element();
@@ -271,23 +288,23 @@ public class KafkaToBigQuery {
    * defaultDeadLetterTableSuffix is returned instead.
    */
   private static ValueProvider<String> maybeUseDefaultDeadletterTable(
-      ValueProvider<String> deadletterTable,
-      ValueProvider<String> outputTableSpec,
-      String defaultDeadLetterTableSuffix) {
+          ValueProvider<String> deadletterTable,
+          ValueProvider<String> outputTableSpec,
+          String defaultDeadLetterTableSuffix) {
     return DualInputNestedValueProvider.of(
-        deadletterTable,
-        outputTableSpec,
-        new SerializableFunction<TranslatorInput<String, String>, String>() {
-          @Override
-          public String apply(TranslatorInput<String, String> input) {
-            String userProvidedTable = input.getX();
-            String outputTableSpec = input.getY();
-            if (userProvidedTable == null) {
-              return outputTableSpec + defaultDeadLetterTableSuffix;
-            }
-            return userProvidedTable;
-          }
-        });
+            deadletterTable,
+            outputTableSpec,
+            new SerializableFunction<TranslatorInput<String, String>, String>() {
+              @Override
+              public String apply(TranslatorInput<String, String> input) {
+                String userProvidedTable = input.getX();
+                String outputTableSpec = input.getY();
+                if (userProvidedTable == null) {
+                  return outputTableSpec + defaultDeadLetterTableSuffix;
+                }
+                return userProvidedTable;
+              }
+            });
   }
 
   /**
@@ -312,7 +329,7 @@ public class KafkaToBigQuery {
    * </ul>
    */
   static class MessageToTableRow
-      extends PTransform<PCollection<KV<String, String>>, PCollectionTuple> {
+          extends PTransform<PCollection<KV<String, String>>, PCollectionTuple> {
 
     private final Options options;
 
@@ -324,35 +341,35 @@ public class KafkaToBigQuery {
     public PCollectionTuple expand(PCollection<KV<String, String>> input) {
 
       PCollectionTuple udfOut =
-          input
-              // Map the incoming messages into FailsafeElements so we can recover from failures
-              // across multiple transforms.
-              .apply("MapToRecord", ParDo.of(new MessageToFailsafeElementFn()))
-              .apply(
-                  "InvokeUDF",
-                  FailsafeJavascriptUdf.<KV<String, String>>newBuilder()
-                      .setFileSystemPath(options.getJavascriptTextTransformGcsPath())
-                      .setFunctionName(options.getJavascriptTextTransformFunctionName())
-                      .setSuccessTag(UDF_OUT)
-                      .setFailureTag(UDF_DEADLETTER_OUT)
-                      .build());
+              input
+                      // Map the incoming messages into FailsafeElements so we can recover from failures
+                      // across multiple transforms.
+                      .apply("MapToRecord", ParDo.of(new MessageToFailsafeElementFn()))
+                      .apply(
+                              "InvokeUDF",
+                              FailsafeJavascriptUdf.<KV<String, String>>newBuilder()
+                                      .setFileSystemPath(options.getJavascriptTextTransformGcsPath())
+                                      .setFunctionName(options.getJavascriptTextTransformFunctionName())
+                                      .setSuccessTag(UDF_OUT)
+                                      .setFailureTag(UDF_DEADLETTER_OUT)
+                                      .build());
 
       // Convert the records which were successfully processed by the UDF into TableRow objects.
       PCollectionTuple jsonToTableRowOut =
-          udfOut
-              .get(UDF_OUT)
-              .apply(
-                  "JsonToTableRow",
-                  FailsafeJsonToTableRow.<KV<String, String>>newBuilder()
-                      .setSuccessTag(TRANSFORM_OUT)
-                      .setFailureTag(TRANSFORM_DEADLETTER_OUT)
-                      .build());
+              udfOut
+                      .get(UDF_OUT)
+                      .apply(
+                              "JsonToTableRow",
+                              FailsafeJsonToTableRow.<KV<String, String>>newBuilder()
+                                      .setSuccessTag(TRANSFORM_OUT)
+                                      .setFailureTag(TRANSFORM_DEADLETTER_OUT)
+                                      .build());
 
       // Re-wrap the PCollections so we can return a single PCollectionTuple
       return PCollectionTuple.of(UDF_OUT, udfOut.get(UDF_OUT))
-          .and(UDF_DEADLETTER_OUT, udfOut.get(UDF_DEADLETTER_OUT))
-          .and(TRANSFORM_OUT, jsonToTableRowOut.get(TRANSFORM_OUT))
-          .and(TRANSFORM_DEADLETTER_OUT, jsonToTableRowOut.get(TRANSFORM_DEADLETTER_OUT));
+              .and(UDF_DEADLETTER_OUT, udfOut.get(UDF_DEADLETTER_OUT))
+              .and(TRANSFORM_OUT, jsonToTableRowOut.get(TRANSFORM_OUT))
+              .and(TRANSFORM_DEADLETTER_OUT, jsonToTableRowOut.get(TRANSFORM_DEADLETTER_OUT));
     }
   }
 
@@ -362,7 +379,7 @@ public class KafkaToBigQuery {
    * table.
    */
   static class MessageToFailsafeElementFn
-      extends DoFn<KV<String, String>, FailsafeElement<KV<String, String>, String>> {
+          extends DoFn<KV<String, String>, FailsafeElement<KV<String, String>, String>> {
     @ProcessElement
     public void processElement(ProcessContext context) {
       KV<String, String> message = context.element();
@@ -378,7 +395,7 @@ public class KafkaToBigQuery {
    */
   @AutoValue
   public abstract static class WriteKafkaMessageErrors
-      extends PTransform<PCollection<FailsafeElement<KV<String, String>, String>>, WriteResult> {
+          extends PTransform<PCollection<FailsafeElement<KV<String, String>, String>>, WriteResult> {
 
     public abstract ValueProvider<String> getErrorRecordsTable();
 
@@ -400,17 +417,17 @@ public class KafkaToBigQuery {
 
     @Override
     public WriteResult expand(
-        PCollection<FailsafeElement<KV<String, String>, String>> failedRecords) {
+            PCollection<FailsafeElement<KV<String, String>, String>> failedRecords) {
 
       return failedRecords
-          .apply("FailedRecordToTableRow", ParDo.of(new FailedMessageToTableRowFn()))
-          .apply(
-              "WriteFailedRecordsToBigQuery",
-              BigQueryIO.writeTableRows()
-                  .to(getErrorRecordsTable())
-                  .withJsonSchema(getErrorRecordsTableSchema())
-                  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                  .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+              .apply("FailedRecordToTableRow", ParDo.of(new FailedMessageToTableRowFn()))
+              .apply(
+                      "WriteFailedRecordsToBigQuery",
+                      BigQueryIO.writeTableRows()
+                              .to(getErrorRecordsTable())
+                              .withJsonSchema(getErrorRecordsTableSchema())
+                              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                              .withWriteDisposition(WriteDisposition.WRITE_APPEND));
     }
   }
 
@@ -419,14 +436,14 @@ public class KafkaToBigQuery {
    * {@link TableRow} objects which can be output to a dead-letter table.
    */
   public static class FailedMessageToTableRowFn
-      extends DoFn<FailsafeElement<KV<String, String>, String>, TableRow> {
+          extends DoFn<FailsafeElement<KV<String, String>, String>, TableRow> {
 
     /**
      * The formatter used to convert timestamps into a BigQuery compatible <a
      * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp-type">format</a>.
      */
     private static final DateTimeFormatter TIMESTAMP_FORMATTER =
-        DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+            DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     @ProcessElement
     public void processElement(ProcessContext context) {
@@ -435,22 +452,22 @@ public class KafkaToBigQuery {
 
       // Format the timestamp for insertion
       String timestamp =
-          TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
+              TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
 
       // Build the table row
       final TableRow failedRow =
-          new TableRow()
-              .set("timestamp", timestamp)
-              .set("errorMessage", failsafeElement.getErrorMessage())
-              .set("stacktrace", failsafeElement.getStacktrace());
+              new TableRow()
+                      .set("timestamp", timestamp)
+                      .set("errorMessage", failsafeElement.getErrorMessage())
+                      .set("stacktrace", failsafeElement.getStacktrace());
 
       // Only set the payload if it's populated on the message.
       failedRow.set(
-          "payloadString",
-          "key: "
-              + (message.getKey() == null ? "" : message.getKey())
-              + "value: "
-              + (message.getValue() == null ? "" : message.getValue()));
+              "payloadString",
+              "key: "
+                      + (message.getKey() == null ? "" : message.getKey())
+                      + "value: "
+                      + (message.getValue() == null ? "" : message.getValue()));
       context.output(failedRow);
     }
   }

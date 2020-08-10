@@ -209,7 +209,7 @@ public class KafkaToBigQuery {
      */
     Map<String, Object> props = new HashMap<>();
     props.put("security.protocol", "SASL_SSL");
-    props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"ISEQCYNHRK6SYHKP\" password=\"OQ49NUPAiCJVaKObAPvEABhju443BCMipfbiflvL4R9QWV9h/JH18xWcuJ4Kugfs\";");
+    props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"2CBJAITLGK4HLMYJ\" password=\"YZ3J/jPIf7RFPvj4axs20jbT4yc9a78SYJEWMl0GX3Bn5WlW3pbIYLycnyC3yZrm\";");
     props.put("ssl.endpoint.identification.algorithm", "https");
     props.put("sasl.mechanism", "PLAIN");
 

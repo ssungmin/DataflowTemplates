@@ -461,13 +461,15 @@ public class KafkaToBigQuery {
                       .set("errorMessage", failsafeElement.getErrorMessage())
                       .set("stacktrace", failsafeElement.getStacktrace());
 
-      // Only set the payload if it's populated on the message.
-      //failedRow.set(
-      //        "payloadString",
-      //        "key: "
-      //+ (message.getKey() == null ? "" : message.getKey())
-      //                + "value: "
-      //                + (message.getValue() == null ? "" : message.getValue()));
+        failedRow.set("payloadString", "")
+                 .set("payloadBytes", "");
+       //Only set the payload if it's populated on the message.
+     // failedRow.set(
+     //         "payloadString",
+     //         "key: "
+     // + (message.getKey() == null ? "" : message.getKey())
+     //                 + "value: "
+     //                 + (message.getValue() == null ? "" : message.getValue()));
       context.output(failedRow);
     }
   }

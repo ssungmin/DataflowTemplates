@@ -241,6 +241,7 @@ public class KafkaToBigQuery {
                      * Step #2: Transform the Kafka Messages into TableRows
                      */
                     .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+    LOG.info(transformOut.toString());
 
     /*
      * Step #3: Write the successful records out to BigQuery
@@ -353,6 +354,7 @@ public class KafkaToBigQuery {
                                       .setSuccessTag(UDF_OUT)
                                       .setFailureTag(UDF_DEADLETTER_OUT)
                                       .build());
+
 
       // Convert the records which were successfully processed by the UDF into TableRow objects.
       PCollectionTuple jsonToTableRowOut =

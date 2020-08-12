@@ -208,11 +208,16 @@ public class KafkaToBigQuery {
      *  4) Write failed records out to BigQuery
      */
     Map<String, Object> props = new HashMap<>();
-    props.put("security.protocol", "SASL_SSL");
-    props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"2CBJAITLGK4HLMYJ\" password=\"YZ3J/jPIf7RFPvj4axs20jbT4yc9a78SYJEWMl0GX3Bn5WlW3pbIYLycnyC3yZrm\";");
-    props.put("ssl.endpoint.identification.algorithm", "https");
-    props.put("sasl.mechanism", "PLAIN");
+    props.put("security.protocol", "SASL_PLAINTEXT");
+    props.put("sasl.jaas.config", "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"mp-user\" password=\"O1ZSjjcv3JMh\";");
+    props.put("sasl.mechanism", "SCRAM-SHA-512");
     props.put("auto.offset.reset", "earliest" );
+
+    //props.put("security.protocol", "SASL_SSL");
+    //props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"2CBJAITLGK4HLMYJ\" password=\"YZ3J/jPIf7RFPvj4axs20jbT4yc9a78SYJEWMl0GX3Bn5WlW3pbIYLycnyC3yZrm\";");
+    //props.put("ssl.endpoint.identification.algorithm", "https");
+    //props.put("sasl.mechanism", "PLAIN");
+    //props.put("auto.offset.reset", "earliest" );
 
 
     PCollectionTuple transformOut =

@@ -564,6 +564,16 @@
       <artifactId>proto</artifactId>
       <version>${tensorflow.version}</version>
     </dependency>
+      <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-sdks-java-io-amazon-web-services</artifactId>
+          <version>2.23.0</version>
+      </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-kinesis</artifactId>
+      <version>2.23.0</version>
+    </dependency>
   </dependencies>
 
   <build>

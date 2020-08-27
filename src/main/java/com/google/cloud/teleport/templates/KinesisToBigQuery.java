@@ -42,9 +42,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.values.*;
-import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -52,14 +50,11 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import org.json.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * The {@link KafkaToBigQuery} pipeline is a streaming pipeline which ingests data in JSON format
+ * The {@link KinesisToBigQuery} pipeline is a streaming pipeline which ingests data in JSON format
  * from Kafka, executes a UDF, and outputs the resulting records to BigQuery. Any errors which occur
  * in the transformation of the data or execution of the UDF will be output to a separate errors
  * table in BigQuery. The errors table will be created if it does not exist prior to execution. Both
@@ -106,10 +101,10 @@ import org.json.*;
  * outputDeadletterTable=kafka-test:kafka.kafka_to_bigquery_deadletter"
  * </pre>
  */
-public class KafkaToBigQuery {
+public class KinesisToBigQuery {
 
   /** The log to output status messages to. */
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaToBigQuery.class);
+  private static final Logger LOG = LoggerFactory.getLogger(KinesisToBigQuery.class);
 
   /** The tag for the main output for the UDF. */
   public static final TupleTag<FailsafeElement<KV<String, String>, String>> UDF_OUT =
@@ -165,7 +160,7 @@ public class KafkaToBigQuery {
   /**
    * The main entry-point for pipeline execution. This method will start the pipeline but will not
    * wait for it's execution to finish. If blocking execution is required, use the {@link
-   * KafkaToBigQuery#run(Options)} method to start the pipeline and invoke {@code
+   * KinesisToBigQuery#run(Options)} method to start the pipeline and invoke {@code
    * result.waitUntilFinish()} on the {@link PipelineResult}.
    *
    * @param args The command-line args passed by the executor.
@@ -328,13 +323,13 @@ public class KafkaToBigQuery {
    * <p>The {@link PCollectionTuple} output will contain the following {@link PCollection}:
    *
    * <ul>
-   *   <li>{@link KafkaToBigQuery#UDF_OUT} - Contains all {@link FailsafeElement} records
+   *   <li>{@link KinesisToBigQuery#UDF_OUT} - Contains all {@link FailsafeElement} records
    *       successfully processed by the optional UDF.
-   *   <li>{@link KafkaToBigQuery#UDF_DEADLETTER_OUT} - Contains all {@link FailsafeElement} records
+   *   <li>{@link KinesisToBigQuery#UDF_DEADLETTER_OUT} - Contains all {@link FailsafeElement} records
    *       which failed processing during the UDF execution.
-   *   <li>{@link KafkaToBigQuery#TRANSFORM_OUT} - Contains all records successfully converted from
+   *   <li>{@link KinesisToBigQuery#TRANSFORM_OUT} - Contains all records successfully converted from
    *       JSON to {@link TableRow} objects.
-   *   <li>{@link KafkaToBigQuery#TRANSFORM_DEADLETTER_OUT} - Contains all {@link FailsafeElement}
+   *   <li>{@link KinesisToBigQuery#TRANSFORM_DEADLETTER_OUT} - Contains all {@link FailsafeElement}
    *       records which couldn't be converted to table rows.
    * </ul>
    */

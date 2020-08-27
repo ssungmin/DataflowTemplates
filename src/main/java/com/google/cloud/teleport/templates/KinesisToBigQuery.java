@@ -165,7 +165,7 @@ public class KinesisToBigQuery {
     @Default.String("N")
     String getGzipYN();
 
-    void setGizYN(String value);
+    void setGzipYN(String value);
 
     @Description("Table spec to write the output to")
     ValueProvider<String> getOutputTableSpec();

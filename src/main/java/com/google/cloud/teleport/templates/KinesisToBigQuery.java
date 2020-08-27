@@ -138,19 +138,16 @@ public class KinesisToBigQuery {
    */
   public interface Options extends PipelineOptions, AwsOptions, JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
-    @Validation.Required
     String getAwsAccessKey();
 
     void setAwsAccessKey(String value);
 
     @Description("AWS Secret Key")
-    @Validation.Required
     String getAwsSecretKey();
 
     void setAwsSecretKey(String value);
 
     @Description("Name of the Kinesis Data Stream to read from")
-    @Validation.Required
     String getInputStreamName();
 
     void setInputStreamName(String value);

@@ -146,11 +146,7 @@ public class KinesisToBigQuery {
     String getAwsSecretKey();
 
     void setAwsSecretKey(String value);
-
-    @Description("AWS Region")
-    String getAwsRegion();
     
-
 
     @Description("Name of the Kinesis Data Stream to read from")
     String getInputStreamName();

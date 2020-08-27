@@ -144,7 +144,7 @@ public class KinesisToBigQuery {
 
     @Description("AWS Secret Key")
     String getAwsSecretKey();
-e
+
     void setAwsSecretKey(String value);
 
     @Description("AWS Region")

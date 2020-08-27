@@ -16,6 +16,8 @@
 
 package com.google.cloud.teleport.templates;
 
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.teleport.coders.FailsafeElementCoder;
@@ -37,10 +39,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.*;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.values.*;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -50,8 +49,17 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
+
+import org.apache.beam.sdk.io.aws.options.AwsOptions;
+import org.apache.beam.sdk.io.kinesis.KinesisIO;
+import org.apache.beam.sdk.io.kinesis.KinesisRecord;
 
 /**
  * The {@link KinesisToBigQuery} pipeline is a streaming pipeline which ingests data in JSON format
@@ -128,21 +136,42 @@ public class KinesisToBigQuery {
    * The {@link Options} class provides the custom execution options passed by the executor at the
    * command-line.
    */
-  public interface Options extends PipelineOptions, JavascriptTextTransformerOptions {
+  public interface Options extends PipelineOptions, AwsOptions, JavascriptTextTransformerOptions {
+    @Description("AWS Access Key")
+    @Validation.Required
+    String getAwsAccessKey();
+
+    void setAwsAccessKey(String value);
+
+    @Description("AWS Secret Key")
+    @Validation.Required
+    String getAwsSecretKey();
+
+    void setAwsSecretKey(String value);
+
+    @Description("Name of the Kinesis Data Stream to read from")
+    @Validation.Required
+    String getInputStreamName();
+
+    void setInputStreamName(String value);
+
+    @Description("Initial Position In Stream")
+    @Default.String("LATEST")
+    String getInitialPositionInStream();
+
+    void setInitialPositionInStream(String value);
+
+    @Description("gzip exist")
+    @Default.String("N")
+    String getGzipYN();
+
+    void setGizYN(String value);
+
     @Description("Table spec to write the output to")
     ValueProvider<String> getOutputTableSpec();
 
     void setOutputTableSpec(ValueProvider<String> value);
 
-    @Description("Kafka Bootstrap Servers")
-    ValueProvider<String> getBootstrapServers();
-
-    void setBootstrapServers(ValueProvider<String> value);
-
-    @Description("Kafka topic to read the input from")
-    ValueProvider<String> getInputTopic();
-
-    void setInputTopic(ValueProvider<String> value);
 
     @Description(
             "The dead-letter table to output to within BigQuery in <project-id>:<dataset>.<table> "
@@ -151,10 +180,6 @@ public class KinesisToBigQuery {
 
     void setOutputDeadletterTable(ValueProvider<String> value);
 
-    @Description("Kafka producer properties")
-    String getKafkaProducerConfig();
-
-    void setKafkaProducerConfig(String value);
   }
 
   /**
@@ -202,48 +227,67 @@ public class KinesisToBigQuery {
      *  3) Write successful records out to BigQuery
      *  4) Write failed records out to BigQuery
      */
-    Map<String, Object> props = new HashMap<>();
-    props.put("security.protocol", "SASL_PLAINTEXT");
-    props.put("sasl.jaas.config", "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"mp-user\" password=\"O1ZSjjcv3JMh\";");
-    props.put("sasl.mechanism", "SCRAM-SHA-512");
-    props.put("auto.offset.reset", "earliest" );
-
-    Map<String, Object> producerConfig = new HashMap<>();
-
-    for (String arg : options.getKafkaProducerConfig().split(",")) {
-      producerConfig.put(arg.split("=", 2)[0].trim(), arg.split("=", 2)[1].trim());
+    InitialPositionInStream initialPosition = InitialPositionInStream.LATEST;
+    if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
+      initialPosition = InitialPositionInStream.TRIM_HORIZON;
     }
 
 
-    //props.put("security.protocol", "SASL_SSL");
-    //props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"2CBJAITLGK4HLMYJ\" password=\"YZ3J/jPIf7RFPvj4axs20jbT4yc9a78SYJEWMl0GX3Bn5WlW3pbIYLycnyC3yZrm\";");
-    //props.put("ssl.endpoint.identification.algorithm", "https");
-    //props.put("sasl.mechanism", "PLAIN");
-    //props.put("auto.offset.reset", "earliest" );
-
     PCollectionTuple transformOut =
               pipeline
-                      /*
-                       * Step #1: Read messages in from Kafka
-                       */
-                      .apply(
-                              "ReadFromKafka",
-                              KafkaIO.<String, String>read()
-                                      .updateConsumerProperties(producerConfig)
-                                      .withBootstrapServers(options.getBootstrapServers())
-                                      .withTopic(options.getInputTopic())
-                                      .withKeyDeserializer(StringDeserializer.class)
 
-                                      .withValueDeserializer(StringDeserializer.class)
-                                      // NumSplits is hard-coded to 1 for single-partition use cases (e.g., Debezium
-                                      // Change Data Capture). Once Dataflow dynamic templates are available, this can
-                                      // be deprecated.
-                                      .withNumSplits(1)
-                                      .withoutMetadata())
+                .apply(
+                    "kinesis stream source",
+                        KinesisIO.read()
+                            .withAWSClientsProvider(
+                            options.getAwsAccessKey(),
+                            options.getAwsSecretKey(),
+                            Regions.fromName(options.getAwsRegion()))
+                            .withStreamName(options.getInputStreamName())
+                            .withInitialPositionInStream(initialPosition))
+                .apply(
+                              "parse kinesis events",
+                        ParDo.of(
+                            new DoFn<KinesisRecord, KV<String, String>>() {
+                                @ProcessElement
+                                public void processElement(
+                                    @Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
+                                      try {
 
-                      /*
-                       * Step #2: Transform the Kafka Messages into TableRows
-                       */
+                                        if (options.getGzipYN() == "Y") {
+                                          out.output(
+                                                  KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
+
+                                        } else{
+
+                                          out.output(
+                                                  KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
+                                        }
+                                      } catch (Exception e) {
+                                            LOG.warn("failed to parse event: {}", e.getLocalizedMessage());
+                                      }
+                                    }
+
+                              private String getStringFromByteArrayWithGzip(byte[] dataAsBytes) {
+                                try {
+                                  ByteArrayInputStream bais = new ByteArrayInputStream(dataAsBytes);
+                                  GZIPInputStream gzis = new GZIPInputStream(bais);
+                                  InputStreamReader reader = new InputStreamReader(gzis,"UTF-8");
+                                  BufferedReader in = new BufferedReader(reader);
+
+                                  StringBuilder sb = new StringBuilder();
+                                  String readed;
+                                  while ((readed = in.readLine()) != null) {
+                                    sb.append(readed);
+                                  }
+                                  return sb.toString();
+                                } catch (IOException ioe) {
+                                  LOG.warn("failed to unzip event: {}", ioe.getLocalizedMessage());
+                                }
+                                return null;
+                              }
+                              }))
+
                       .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
       LOG.info(transformOut.toString());
 
@@ -263,6 +307,7 @@ public class KinesisToBigQuery {
     /*
      * Step #4: Write failed records out to BigQuery
      */
+    /**
     PCollectionList.of(transformOut.get(UDF_DEADLETTER_OUT))
             .and(transformOut.get(TRANSFORM_DEADLETTER_OUT))
             .apply("Flatten", Flatten.pCollections())
@@ -275,7 +320,7 @@ public class KinesisToBigQuery {
                                             options.getOutputTableSpec(),
                                             DEFAULT_DEADLETTER_TABLE_SUFFIX))
                             .setErrorRecordsTableSchema(ResourceUtils.getDeadletterTableSchemaJson())
-                            .build());
+                            .build()); **/
     return pipeline.run();
   }
 
@@ -379,6 +424,7 @@ public class KinesisToBigQuery {
     }
   }
 
+
   /**
    * The {@link MessageToFailsafeElementFn} wraps an Kafka Message with the {@link FailsafeElement}
    * class so errors can be recovered from and the original message can be output to a error records
@@ -394,90 +440,6 @@ public class KinesisToBigQuery {
     }
   }
 
-  /**
-   * The {@link WriteKafkaMessageErrors} class is a transform which can be used to write messages
-   * which failed processing to an error records table. Each record is saved to the error table is
-   * enriched with the timestamp of that record and the details of the error including an error
-   * message and stacktrace for debugging.
-   */
-  @AutoValue
-  public abstract static class WriteKafkaMessageErrors
-          extends PTransform<PCollection<FailsafeElement<KV<String, String>, String>>, WriteResult> {
 
-    public abstract ValueProvider<String> getErrorRecordsTable();
 
-    public abstract String getErrorRecordsTableSchema();
-
-    public static Builder newBuilder() {
-      return new AutoValue_KafkaToBigQuery_WriteKafkaMessageErrors.Builder();
-    }
-
-    /** Builder for {@link WriteKafkaMessageErrors}. */
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setErrorRecordsTable(ValueProvider<String> errorRecordsTable);
-
-      public abstract Builder setErrorRecordsTableSchema(String errorRecordsTableSchema);
-
-      public abstract WriteKafkaMessageErrors build();
-    }
-
-    @Override
-    public WriteResult expand(
-            PCollection<FailsafeElement<KV<String, String>, String>> failedRecords) {
-
-      return failedRecords
-              .apply("FailedRecordToTableRow", ParDo.of(new FailedMessageToTableRowFn()))
-              .apply(
-                      "WriteFailedRecordsToBigQuery",
-                      BigQueryIO.writeTableRows()
-                              .to(getErrorRecordsTable())
-                              .withJsonSchema(getErrorRecordsTableSchema())
-                              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                              .withWriteDisposition(WriteDisposition.WRITE_APPEND));
-    }
-  }
-
-  /**
-   * The {@link FailedMessageToTableRowFn} converts Kafka message which have failed processing into
-   * {@link TableRow} objects which can be output to a dead-letter table.
-   */
-  public static class FailedMessageToTableRowFn
-          extends DoFn<FailsafeElement<KV<String, String>, String>, TableRow> {
-
-    /**
-     * The formatter used to convert timestamps into a BigQuery compatible <a
-     * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp-type">format</a>.
-     */
-    private static final DateTimeFormatter TIMESTAMP_FORMATTER =
-            DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      FailsafeElement<KV<String, String>, String> failsafeElement = context.element();
-      final KV<String, String> message = failsafeElement.getOriginalPayload();
-
-      // Format the timestamp for insertion
-      String timestamp =
-              TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
-
-      // Build the table row
-      final TableRow failedRow =
-              new TableRow()
-                      .set("timestamp", timestamp)
-                      .set("errorMessage", failsafeElement.getErrorMessage())
-                      .set("stacktrace", failsafeElement.getStacktrace());
-
-        failedRow.set("payloadString", "")
-                 .set("payloadBytes", "");
-       //Only set the payload if it's populated on the message.
-     // failedRow.set(
-     //         "payloadString",
-     //         "key: "
-     // + (message.getKey() == null ? "" : message.getKey())
-     //                 + "value: "
-     //                 + (message.getValue() == null ? "" : message.getValue()));
-      context.output(failedRow);
-    }
-  }
 }

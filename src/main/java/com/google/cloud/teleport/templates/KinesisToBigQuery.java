@@ -148,6 +148,7 @@ public class KinesisToBigQuery {
     void setAwsSecretKey(String value);
 
     @Description("AWS Region")
+    @Default.String("us-central1 ")
     String getAwsRegion();
 
     void setAwsRegion(String value);

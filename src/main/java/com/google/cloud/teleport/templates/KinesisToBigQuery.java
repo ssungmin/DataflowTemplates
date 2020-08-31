@@ -253,7 +253,7 @@ public class KinesisToBigQuery {
 
                                        // if (options.getGzipYN() == "Y") {
                                         //  out.output(
-                                                  KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
+                                          //        KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 
                                        // } else{
 

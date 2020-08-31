@@ -17,6 +17,7 @@
 package com.google.cloud.teleport.templates;
 
 import com.amazonaws.regions.Regions;
+import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
@@ -137,7 +138,7 @@ public class KinesisToBigQuery {
    * The {@link Options} class provides the custom execution options passed by the executor at the
    * command-line.
    */
-  public interface Options extends PipelineOptions , JavascriptTextTransformerOptions {
+  public interface Options extends PipelineOptions ,AwsOptions , JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
     String getAwsAccessKey();
 
@@ -240,7 +241,7 @@ public class KinesisToBigQuery {
                         KinesisIO.read()
                         .withStreamName(options.getInputStreamName().toString())
                         .withInitialPositionInStream(initialPosition)
-                        .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() ,Regions.AP_NORTHEAST_2 )
+                        .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() ,Regions.fromName(options.getAwsRegion()))
                 );
 
 

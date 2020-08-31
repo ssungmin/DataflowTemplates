@@ -232,7 +232,6 @@ public class KinesisToBigQuery {
     }
 
 
-
     //PCollectionTuple transformOut =
      PCollection transformOut =
               pipeline
@@ -252,15 +251,15 @@ public class KinesisToBigQuery {
                                      //KinesisRecord record = out.element();
                                       try {
 
-                                        if (options.getGzipYN() == "Y") {
-                                          out.output(
+                                       // if (options.getGzipYN() == "Y") {
+                                        //  out.output(
                                                   KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 
-                                        } else{
+                                       // } else{
 
                                           out.output(
                                                   KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
-                                        }
+                                       // }
                                       } catch (Exception e) {
                                             LOG.warn("failed to parse event: {}", e.getLocalizedMessage());
                                       }

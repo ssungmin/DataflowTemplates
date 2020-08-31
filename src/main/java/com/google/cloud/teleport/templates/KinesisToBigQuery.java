@@ -242,11 +242,7 @@ public class KinesisToBigQuery {
                         .withStreamName(options.getInputStreamName())
                         .withInitialPositionInStream(initialPosition)
                         .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() ,Regions.fromName(options.getAwsRegion()))
-                );
-
-
-/**
-
+                )
                 .apply(
                               "parse kinesis events",
                         ParDo.of(
@@ -288,7 +284,7 @@ public class KinesisToBigQuery {
                                 }
                                 return null;
                               }
-                              })); **/
+                              })); 
 
                       // .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
      // LOG.info(transformOut.toString());

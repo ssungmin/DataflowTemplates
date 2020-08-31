@@ -252,7 +252,7 @@ public class KinesisToBigQuery {
                                      //KinesisRecord record = out.element();
                                       try {
 
-                                        if (options.getGzipYN().toString() == "Y") {
+                                        if (options.getGzipYN() == "Y") {
                                           out.output(
                                                   KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 
@@ -284,7 +284,7 @@ public class KinesisToBigQuery {
                                 }
                                 return null;
                               }
-                              })); 
+                              }));
 
                       // .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
      // LOG.info(transformOut.toString());

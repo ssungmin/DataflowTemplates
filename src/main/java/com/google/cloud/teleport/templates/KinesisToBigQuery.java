@@ -249,12 +249,15 @@ public class KinesisToBigQuery {
                                         @ProcessElement
                                         public void processElement(@Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
                                           //KinesisRecord record = out.element();
+                                          try {
+                                            out.output(
+                                                    KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
 
+                                          } catch (Exception e) {
+                                            LOG.warn("failed to parse event: {}", e.getLocalizedMessage());
 
-                                            LOG.info("failed to parse event");
-
-                                        }
-                                      } ));
+                                            }
+                                      }} ));
 
 /**
 

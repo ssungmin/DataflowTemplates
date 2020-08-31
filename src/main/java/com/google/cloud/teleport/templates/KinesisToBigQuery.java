@@ -241,23 +241,8 @@ public class KinesisToBigQuery {
                         .withStreamName(options.getInputStreamName().toString())
                         .withInitialPositionInStream(initialPosition)
                         .withAWSClientsProvider(options.getAwsAccessKey().toString(), options.getAwsSecretKey().toString(),Regions.AP_NORTHEAST_2 )
-                )
-                      .apply(
-                              "parse kinesis events",
-                              ParDo.of(
-                                      new DoFn<KinesisRecord, KV<String, String>>() {
-                                        @ProcessElement
-                                        public void processElement(@Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
-                                          //KinesisRecord record = out.element();
-                                          try {
-                                            out.output(
-                                                    KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
+                );
 
-                                          } catch (Exception e) {
-                                            LOG.warn("failed to parse event: {}", e.getLocalizedMessage());
-
-                                            }
-                                      }} ));
 
 /**
 

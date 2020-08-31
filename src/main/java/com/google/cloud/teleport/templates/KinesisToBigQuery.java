@@ -35,6 +35,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -57,9 +58,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.io.kinesis.KinesisIO;
 import org.apache.beam.sdk.io.kinesis.KinesisRecord;
+import com.amazonaws.regions.Regions;
 
 /**
  * The {@link KinesisToBigQuery} pipeline is a streaming pipeline which ingests data in JSON format
@@ -136,34 +137,33 @@ public class KinesisToBigQuery {
    * The {@link Options} class provides the custom execution options passed by the executor at the
    * command-line.
    */
-  public interface Options extends PipelineOptions, AwsOptions, JavascriptTextTransformerOptions {
+  public interface Options extends PipelineOptions , JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
-    String getAwsAccessKey();
+    ValueProvider<String> getAwsAccessKey();
 
-    void setAwsAccessKey(String value);
+    void setAwsAccessKey(ValueProvider<String> value);
 
     @Description("AWS Secret Key")
-    String getAwsSecretKey();
+    ValueProvider<String> getAwsSecretKey();
 
-    void setAwsSecretKey(String value);
-    
+    void setAwsSecretKey(ValueProvider<String> value);
+
+
 
     @Description("Name of the Kinesis Data Stream to read from")
-    String getInputStreamName();
+    ValueProvider<String> getInputStreamName();
 
-    void setInputStreamName(String value);
+    void setInputStreamName(ValueProvider<String> value);
 
     @Description("Initial Position In Stream")
-    @Default.String("LATEST")
-    String getInitialPositionInStream();
+    ValueProvider<String> getInitialPositionInStream();
 
-    void setInitialPositionInStream(String value);
+    void setInitialPositionInStream(ValueProvider<String> value);
 
     @Description("gzip exist")
-    @Default.String("N")
-    String getGzipYN();
+    ValueProvider<String> getGzipYN();
 
-    void setGzipYN(String value);
+    void setGzipYN(ValueProvider<String> value);
 
     @Description("Table spec to write the output to")
     ValueProvider<String> getOutputTableSpec();
@@ -231,18 +231,16 @@ public class KinesisToBigQuery {
     }
 
 
+
     PCollectionTuple transformOut =
               pipeline
-
                 .apply(
                     "kinesis stream source",
                         KinesisIO.read()
-                            .withAWSClientsProvider(
-                            options.getAwsAccessKey(),
-                            options.getAwsSecretKey(),
-                            Regions.fromName(options.getAwsRegion()))
-                            .withStreamName(options.getInputStreamName())
-                            .withInitialPositionInStream(initialPosition))
+                        .withStreamName(options.getInputStreamName().toString())
+                        .withInitialPositionInStream(initialPosition)
+                        .withAWSClientsProvider(options.getAwsAccessKey().toString(), options.getAwsSecretKey().toString(),Regions.AP_NORTHEAST_2 )
+                )
                 .apply(
                               "parse kinesis events",
                         ParDo.of(
@@ -252,7 +250,7 @@ public class KinesisToBigQuery {
                                     @Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
                                       try {
 
-                                        if (options.getGzipYN() == "Y") {
+                                        if (options.getGzipYN().toString() == "Y") {
                                           out.output(
                                                   KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 

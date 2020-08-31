@@ -232,7 +232,8 @@ public class KinesisToBigQuery {
 
 
 
-    PCollectionTuple transformOut =
+    //PCollectionTuple transformOut =
+     PCollection transformOut =
               pipeline
                 .apply(
                     "kinesis stream source",
@@ -283,14 +284,15 @@ public class KinesisToBigQuery {
                                 }
                                 return null;
                               }
-                              }))
+                              }));
 
-                       .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+                      // .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
       LOG.info(transformOut.toString());
 
     /*
      * Step #3: Write the successful records out to BigQuery
      */
+    /**
     transformOut
             .get(TRANSFORM_OUT)
             .apply(
@@ -299,7 +301,7 @@ public class KinesisToBigQuery {
                             .withoutValidation()
                             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                             .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-                            .to(options.getOutputTableSpec()));
+                            .to(options.getOutputTableSpec())); **/
 
     /*
      * Step #4: Write failed records out to BigQuery

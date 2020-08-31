@@ -242,6 +242,21 @@ public class KinesisToBigQuery {
                         .withInitialPositionInStream(initialPosition)
                         .withAWSClientsProvider(options.getAwsAccessKey().toString(), options.getAwsSecretKey().toString(),Regions.AP_NORTHEAST_2 )
                 )
+                      .apply(
+                              "parse kinesis events",
+                              ParDo.of(
+                                      new DoFn<KinesisRecord, KV<String, String>>() {
+                                        @ProcessElement
+                                        public void processElement(@Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
+                                          //KinesisRecord record = out.element();
+
+
+                                            LOG.info("failed to parse event: {}");
+
+                                        }
+                                      } ));
+
+/**
 
                 .apply(
                               "parse kinesis events",
@@ -284,7 +299,7 @@ public class KinesisToBigQuery {
                                 }
                                 return null;
                               }
-                              }));
+                              })); **/
 
                       // .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
       LOG.info(transformOut.toString());

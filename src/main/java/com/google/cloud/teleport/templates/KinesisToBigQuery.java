@@ -251,7 +251,7 @@ public class KinesisToBigQuery {
                                           //KinesisRecord record = out.element();
 
 
-                                            LOG.info("failed to parse event: {}");
+                                            LOG.info("failed to parse event");
 
                                         }
                                       } ));

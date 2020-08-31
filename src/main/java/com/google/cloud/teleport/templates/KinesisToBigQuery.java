@@ -139,38 +139,36 @@ public class KinesisToBigQuery {
    */
   public interface Options extends PipelineOptions , JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
-    @Default.String("test.payloadData")
-    ValueProvider<String> getAwsAccessKey();
+    String getAwsAccessKey();
 
-    void setAwsAccessKey(ValueProvider<String> value);
+    void setAwsAccessKey(String value);
 
     @Description("AWS Secret Key")
-    @Default.String("test.payloadData")
-    ValueProvider<String> getAwsSecretKey();
+    String getAwsSecretKey();
 
-    void setAwsSecretKey(ValueProvider<String> value);
+    void setAwsSecretKey(String value);
 
 
 
     @Description("Name of the Kinesis Data Stream to read from")
-    ValueProvider<String> getInputStreamName();
+    String getInputStreamName();
 
-    void setInputStreamName(ValueProvider<String> value);
+    void setInputStreamName(String value);
 
     @Description("Initial Position In Stream")
-    ValueProvider<String> getInitialPositionInStream();
+    String getInitialPositionInStream();
 
-    void setInitialPositionInStream(ValueProvider<String> value);
+    void setInitialPositionInStream(String value);
 
     @Description("gzip exist")
-    ValueProvider<String> getGzipYN();
+    String getGzipYN();
 
-    void setGzipYN(ValueProvider<String> value);
+    void setGzipYN(String value);
 
     @Description("Table spec to write the output to")
-    ValueProvider<String> getOutputTableSpec();
+    String getOutputTableSpec();
 
-    void setOutputTableSpec(ValueProvider<String> value);
+    void setOutputTableSpec(String value);
 
 
     @Description(

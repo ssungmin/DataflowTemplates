@@ -175,9 +175,9 @@ public class KinesisToBigQuery {
     @Description(
             "The dead-letter table to output to within BigQuery in <project-id>:<dataset>.<table> "
                     + "format. If it doesn't exist, it will be created during pipeline execution.")
-    ValueProvider<String> getOutputDeadletterTable();
+    String getOutputDeadletterTable();
 
-    void setOutputDeadletterTable(ValueProvider<String> value);
+    void setOutputDeadletterTable(String value);
 
   }
 
@@ -239,7 +239,7 @@ public class KinesisToBigQuery {
                 .apply(
                     "kinesis stream source",
                         KinesisIO.read()
-                        .withStreamName(options.getInputStreamName().toString())
+                        .withStreamName(options.getInputStreamName())
                         .withInitialPositionInStream(initialPosition)
                         .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() ,Regions.fromName(options.getAwsRegion()))
                 );
@@ -291,7 +291,7 @@ public class KinesisToBigQuery {
                               })); **/
 
                       // .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
-      LOG.info(transformOut.toString());
+     // LOG.info(transformOut.toString());
 
     /*
      * Step #3: Write the successful records out to BigQuery

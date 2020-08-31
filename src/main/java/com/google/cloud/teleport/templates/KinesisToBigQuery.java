@@ -139,11 +139,13 @@ public class KinesisToBigQuery {
    */
   public interface Options extends PipelineOptions , JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
+    @Default.String("test.payloadData")
     ValueProvider<String> getAwsAccessKey();
 
     void setAwsAccessKey(ValueProvider<String> value);
 
     @Description("AWS Secret Key")
+    @Default.String("test.payloadData")
     ValueProvider<String> getAwsSecretKey();
 
     void setAwsSecretKey(ValueProvider<String> value);
@@ -240,7 +242,7 @@ public class KinesisToBigQuery {
                         KinesisIO.read()
                         .withStreamName(options.getInputStreamName().toString())
                         .withInitialPositionInStream(initialPosition)
-                        .withAWSClientsProvider(options.getAwsAccessKey().toString(), options.getAwsSecretKey().toString(),Regions.AP_NORTHEAST_2 )
+                       // .withAWSClientsProvider(options.getAwsAccessKey(), options.getAwsSecretKey() ,Regions.AP_NORTHEAST_2 )
                 );
 
 

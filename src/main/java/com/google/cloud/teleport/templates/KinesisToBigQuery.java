@@ -22,7 +22,6 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.teleport.coders.FailsafeElementCoder;
-import com.google.cloud.teleport.kafka.connector.KafkaIO;
 import com.google.cloud.teleport.templates.common.BigQueryConverters.FailsafeJsonToTableRow;
 import com.google.cloud.teleport.templates.common.JavascriptTextTransformer.FailsafeJavascriptUdf;
 import com.google.cloud.teleport.templates.common.JavascriptTextTransformer.JavascriptTextTransformerOptions;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;

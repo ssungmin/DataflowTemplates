@@ -248,17 +248,17 @@ public class KinesisToBigQuery {
                         ParDo.of(
                             new DoFn<KinesisRecord, KV<String, String>>() {
                                 @ProcessElement
-                                public void processElement(ProcessContext c) {
-                                     KinesisRecord record = c.element();
+                                public void processElement(@Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
+                                     //KinesisRecord record = out.element();
                                       try {
 
                                         if (options.getGzipYN().toString() == "Y") {
-                                          c.output(
+                                          out.output(
                                                   KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 
                                         } else{
 
-                                          c.output(
+                                          out.output(
                                                   KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
                                         }
                                       } catch (Exception e) {

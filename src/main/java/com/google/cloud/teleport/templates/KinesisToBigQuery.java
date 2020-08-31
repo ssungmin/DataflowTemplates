@@ -240,7 +240,7 @@ public class KinesisToBigQuery {
                         KinesisIO.read()
                         .withStreamName(options.getInputStreamName().toString())
                         .withInitialPositionInStream(initialPosition)
-                        .withAWSClientsProvider("test", "test" ,Regions.AP_NORTHEAST_2 )
+                        .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() ,Regions.AP_NORTHEAST_2 )
                 );
 
 

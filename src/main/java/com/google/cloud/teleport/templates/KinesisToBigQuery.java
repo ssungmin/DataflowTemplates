@@ -241,22 +241,23 @@ public class KinesisToBigQuery {
                         .withInitialPositionInStream(initialPosition)
                         .withAWSClientsProvider(options.getAwsAccessKey().toString(), options.getAwsSecretKey().toString(),Regions.AP_NORTHEAST_2 )
                 )
+
                 .apply(
                               "parse kinesis events",
                         ParDo.of(
                             new DoFn<KinesisRecord, KV<String, String>>() {
                                 @ProcessElement
-                                public void processElement(
-                                    @Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
+                                public void processElement(ProcessContext c) {
+                                     KinesisRecord record = c.element();
                                       try {
 
                                         if (options.getGzipYN().toString() == "Y") {
-                                          out.output(
+                                          c.output(
                                                   KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 
                                         } else{
 
-                                          out.output(
+                                          c.output(
                                                   KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
                                         }
                                       } catch (Exception e) {
@@ -284,7 +285,7 @@ public class KinesisToBigQuery {
                               }
                               }))
 
-                      .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+                       .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
       LOG.info(transformOut.toString());
 
     /*

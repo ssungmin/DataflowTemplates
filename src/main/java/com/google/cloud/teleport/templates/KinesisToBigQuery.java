@@ -138,44 +138,44 @@ public class KinesisToBigQuery {
    */
   public interface Options extends PipelineOptions ,AwsOptions , JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
-    String getAwsAccessKey();
+    ValueProvider<String> getAwsAccessKey();
 
-    void setAwsAccessKey(String value);
+    void setAwsAccessKey(ValueProvider<String> value);
 
     @Description("AWS Secret Key")
-    String getAwsSecretKey();
+    ValueProvider<String> getAwsSecretKey();
 
-    void setAwsSecretKey(String value);
+    void setAwsSecretKey(ValueProvider<String> value);
 
 
 
     @Description("Name of the Kinesis Data Stream to read from")
-    String getInputStreamName();
+    ValueProvider<String> getInputStreamName();
 
-    void setInputStreamName(String value);
+    void setInputStreamName(ValueProvider<String> value);
 
     @Description("Initial Position In Stream")
-    String getInitialPositionInStream();
+    ValueProvider<String> getInitialPositionInStream();
 
-    void setInitialPositionInStream(String value);
+    void setInitialPositionInStream(ValueProvider<String> value);
 
     @Description("gzip exist")
-    String getGzipYN();
+    ValueProvider<String> getGzipYN();
 
-    void setGzipYN(String value);
+    void setGzipYN(ValueProvider<String> value);
 
     @Description("Table spec to write the output to")
-    String getOutputTableSpec();
+    ValueProvider<String> getOutputTableSpec();
 
-    void setOutputTableSpec(String value);
+    void setOutputTableSpec(ValueProvider<String> value);
 
 
     @Description(
             "The dead-letter table to output to within BigQuery in <project-id>:<dataset>.<table> "
                     + "format. If it doesn't exist, it will be created during pipeline execution.")
-    String getOutputDeadletterTable();
+    ValueProvider<String> getOutputDeadletterTable();
 
-    void setOutputDeadletterTable(String value);
+    void setOutputDeadletterTable(ValueProvider<String> value);
 
   }
 
@@ -236,9 +236,9 @@ public class KinesisToBigQuery {
                 .apply(
                     "kinesis stream source",
                         KinesisIO.read()
-                        .withStreamName(options.getInputStreamName())
+                        .withStreamName(options.getInputStreamName().get())
                         .withInitialPositionInStream(initialPosition)
-                        .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() ,Regions.fromName(options.getAwsRegion()))
+                        .withAWSClientsProvider(options.getAwsAccessKey().get(),options.getAwsSecretKey().get() ,Regions.fromName(options.getAwsRegion()))
                 )
                 .apply(
                               "parse kinesis events",
@@ -249,15 +249,16 @@ public class KinesisToBigQuery {
                                      //KinesisRecord record = out.element();
                                       try {
 
-                                       // if (options.getGzipYN() == "Y") {
-                                        //  out.output(
-                                          //        KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
+                                        if (options.getGzipYN().get() == "Y") {
+                                          out.output(
+                                                  KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 
-                                       // } else{
+                                        } else {
 
                                           out.output(
                                                   KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
-                                       // }
+                                        }
+
                                       } catch (Exception e) {
                                             LOG.warn("failed to parse event: {}", e.getLocalizedMessage());
                                       }

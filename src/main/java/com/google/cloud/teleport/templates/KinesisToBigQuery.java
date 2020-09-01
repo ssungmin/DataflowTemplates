@@ -136,42 +136,39 @@ public class KinesisToBigQuery {
    * The {@link Options} class provides the custom execution options passed by the executor at the
    * command-line.
    */
-  public interface Options extends PipelineOptions , JavascriptTextTransformerOptions {
+  public interface Options extends PipelineOptions ,AwsOptions, JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
-    ValueProvider<String> getAwsAccessKey();
+    String getAwsAccessKey();
 
-    void setAwsAccessKey(ValueProvider<String> value);
+    void setAwsAccessKey(String value);
 
     @Description("AWS Secret Key")
-    ValueProvider<String> getAwsSecretKey();
+    String getAwsSecretKey();
 
-    void setAwsSecretKey(ValueProvider<String> value);
+    void setAwsSecretKey(String value);
 
     @Description("AWS Region Key")
-    ValueProvider<String> getAwsRegions();
-
-    void setAwsRegions(ValueProvider<String> value);
 
 
     @Description("Name of the Kinesis Data Stream to read from")
-    ValueProvider<String> getInputStreamName();
+    String getInputStreamName();
 
-    void setInputStreamName(ValueProvider<String> value);
+    void setInputStreamName(String value);
 
     @Description("Initial Position In Stream")
-    ValueProvider<String> getInitialPositionInStream();
+    String getInitialPositionInStream();
 
-    void setInitialPositionInStream(ValueProvider<String> value);
+    void setInitialPositionInStream(String value);
 
     @Description("gzip exist")
-    ValueProvider<String> getGzipYN();
+    String getGzipYN();
 
-    void setGzipYN(ValueProvider<String> value);
+    void setGzipYN(String value);
 
     @Description("Table spec to write the output to")
-    ValueProvider<String> getOutputTableSpec();
+    String getOutputTableSpec();
 
-    void setOutputTableSpec(ValueProvider<String> value);
+    void setOutputTableSpec(String value);
 
 
     @Description(
@@ -228,10 +225,10 @@ public class KinesisToBigQuery {
      *  3) Write successful records out to BigQuery
      *  4) Write failed records out to BigQuery
      */
-   // InitialPositionInStream initialPosition = InitialPositionInStream.LATEST;
-   // if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
-   //   initialPosition = InitialPositionInStream.TRIM_HORIZON;
-   // }
+    InitialPositionInStream initialPosition = InitialPositionInStream.LATEST;
+    if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
+      initialPosition = InitialPositionInStream.TRIM_HORIZON;
+    }
 
 
     PCollectionTuple transformOut =
@@ -240,9 +237,9 @@ public class KinesisToBigQuery {
                 .apply(
                     "kinesis stream source",
                         KinesisIO.read()
-                        .withStreamName(options.getInputStreamName().get())
-                        .withInitialPositionInStream(options.getInitialPositionInStream().equals("TRIM_HORIZON") ?  InitialPositionInStream.LATEST : InitialPositionInStream.TRIM_HORIZON )
-                        .withAWSClientsProvider(options.getAwsAccessKey().get(),options.getAwsSecretKey().get() , Regions.fromName(options.getAwsRegions().get())))
+                        .withStreamName(options.getInputStreamName())
+                        .withInitialPositionInStream(initialPosition)
+                        .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() , Regions.fromName(options.getAwsRegion())))
 
                 .apply(
                               "parse kinesis events",
@@ -253,7 +250,7 @@ public class KinesisToBigQuery {
                                      //KinesisRecord record = out.element();
                                       try {
 
-                                        if (options.getGzipYN().get() == "Y") {
+                                        if (options.getGzipYN() == "Y") {
                                           out.output(
                                                   KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
 

@@ -352,12 +352,12 @@ public class DatastoreConverters {
 
       // Build entity who's key has an empty project Id.
       // This allows DatastoreIO to handle what project Entities are loaded into
-      Key k = entityBuilder.build().getKey();
+    /**  Key k = entityBuilder.build().getKey();
       entityBuilder.setKey(Key.newBuilder()
           .addAllPath(k.getPathList())
           .setPartitionId(PartitionId.newBuilder()
               .setProjectId("")
-              .setNamespaceId(k.getPartitionId().getNamespaceId())));
+              .setNamespaceId(k.getPartitionId().getNamespaceId()))); **/
 
       c.output(entityBuilder.build());
     }

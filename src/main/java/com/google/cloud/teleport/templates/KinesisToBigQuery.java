@@ -228,10 +228,10 @@ public class KinesisToBigQuery {
      *  3) Write successful records out to BigQuery
      *  4) Write failed records out to BigQuery
      */
-    InitialPositionInStream initialPosition = InitialPositionInStream.LATEST;
-    if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
-      initialPosition = InitialPositionInStream.TRIM_HORIZON;
-    }
+   // InitialPositionInStream initialPosition = InitialPositionInStream.LATEST;
+   // if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
+   //   initialPosition = InitialPositionInStream.TRIM_HORIZON;
+   // }
 
 
     PCollectionTuple transformOut =

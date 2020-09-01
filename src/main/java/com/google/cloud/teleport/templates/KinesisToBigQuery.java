@@ -241,7 +241,7 @@ public class KinesisToBigQuery {
                     "kinesis stream source",
                         KinesisIO.read()
                         .withStreamName(options.getInputStreamName().get())
-                        .withInitialPositionInStream(initialPosition)
+                        .withInitialPositionInStream(options.getInitialPositionInStream().equals("TRIM_HORIZON") ?  InitialPositionInStream.LATEST : InitialPositionInStream.TRIM_HORIZON )
                         .withAWSClientsProvider(options.getAwsAccessKey().get(),options.getAwsSecretKey().get() , Regions.fromName(options.getAwsRegions().get())))
 
                 .apply(

@@ -136,7 +136,7 @@ public class KinesisToBigQuery {
    * The {@link Options} class provides the custom execution options passed by the executor at the
    * command-line.
    */
-  public interface Options extends PipelineOptions ,AwsOptions , JavascriptTextTransformerOptions {
+  public interface Options extends PipelineOptions , JavascriptTextTransformerOptions {
     @Description("AWS Access Key")
     ValueProvider<String> getAwsAccessKey();
 
@@ -228,7 +228,7 @@ public class KinesisToBigQuery {
     if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
       initialPosition = InitialPositionInStream.TRIM_HORIZON;
     }
-
+    
 
     PCollectionTuple transformOut =
      //PCollection transformOut =
@@ -238,9 +238,8 @@ public class KinesisToBigQuery {
                         KinesisIO.read()
                         .withStreamName(options.getInputStreamName().get())
                         .withInitialPositionInStream(initialPosition)
-                        .withAWSClientsProvider(options.getAwsAccessKey().get(),options.getAwsSecretKey().get() ,Regions.fromName(options.getAwsRegion()))
+                        .withAWSClientsProvider(options.getAwsAccessKey().get(),options.getAwsSecretKey().get() , Regions.AP_NORTHEAST_2))
 
-                )
                 .apply(
                               "parse kinesis events",
                         ParDo.of(

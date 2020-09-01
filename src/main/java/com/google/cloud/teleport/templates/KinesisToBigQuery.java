@@ -147,10 +147,6 @@ public class KinesisToBigQuery {
 
     void setAwsSecretKey(ValueProvider<String> value);
 
-    @Description("AWS Region")
-    ValueProvider<String> getAwsRegion();
-
-    void setAwsRegion(ValueProvider<String> value);
 
 
     @Description("Name of the Kinesis Data Stream to read from")
@@ -242,7 +238,8 @@ public class KinesisToBigQuery {
                         KinesisIO.read()
                         .withStreamName(options.getInputStreamName().get())
                         .withInitialPositionInStream(initialPosition)
-                        .withAWSClientsProvider(options.getAwsAccessKey().get(),options.getAwsSecretKey().get() ,Regions.fromName(options.getAwsRegion().get()))
+                        .withAWSClientsProvider(options.getAwsAccessKey().get(),options.getAwsSecretKey().get() ,Regions.fromName(options.getAwsRegion()))
+
                 )
                 .apply(
                               "parse kinesis events",

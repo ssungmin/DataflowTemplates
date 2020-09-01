@@ -146,7 +146,7 @@ public class KinesisToBigQuery {
     String getAwsSecretKey();
 
     void setAwsSecretKey(String value);
-    
+
 
 
     @Description("Name of the Kinesis Data Stream to read from")
@@ -230,8 +230,8 @@ public class KinesisToBigQuery {
     }
 
 
-    PCollectionTuple transformOut =
-     //PCollection transformOut =
+    //PCollectionTuple transformOut =
+     PCollection transformOut =
               pipeline
                 .apply(
                     "kinesis stream source",
@@ -282,9 +282,9 @@ public class KinesisToBigQuery {
                                 }
                                 return null;
                               }
-                              }))
+                              }))   ;
 
-                       .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+                     //   .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
      // LOG.info(transformOut.toString());
 
     /*

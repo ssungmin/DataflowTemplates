@@ -231,8 +231,13 @@ public class KinesisToBigQuery {
      *  4) Write failed records out to BigQuery
      */
     InitialPositionInStream initialPosition = InitialPositionInStream.LATEST;
+    Instant inst = Instant.parse("2020-01-01T00:00:00.00Z");
+
     if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
       initialPosition = InitialPositionInStream.TRIM_HORIZON;
+    } else if(options.getInitialPositionInStream().equals("AT_TIMESTAMP")) {
+      inst = Instant.parse(options.getInitialTimestampInStream());
+
     }
 
 
@@ -244,6 +249,7 @@ public class KinesisToBigQuery {
                         KinesisIO.read()
                         .withStreamName(options.getInputStreamName())
                         .withInitialPositionInStream(initialPosition)
+                        .withInitialTimestampInStream(inst)
                         .withAWSClientsProvider(options.getAwsAccessKey(),options.getAwsSecretKey() , Regions.fromName(options.getAwsRegion())))
 
                 .apply(
@@ -298,7 +304,7 @@ public class KinesisToBigQuery {
     /*
      * Step #3: Write the successful records out to BigQuery
      */
-    /**
+
     transformOut
             .get(TRANSFORM_OUT)
             .apply(
@@ -307,7 +313,7 @@ public class KinesisToBigQuery {
                             .withoutValidation()
                             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                             .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-                            .to(options.getOutputTableSpec())); **/
+                            .to(options.getOutputTableSpec()));
 
     /*
      * Step #4: Write failed records out to BigQuery

@@ -60,6 +60,7 @@ import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.kinesis.KinesisIO;
 import org.apache.beam.sdk.io.kinesis.KinesisRecord;
 import com.amazonaws.regions.Regions;
+import org.joda.time.Instant;
 
 /**
  * The {@link KinesisToBigQuery} pipeline is a streaming pipeline which ingests data in JSON format
@@ -148,7 +149,6 @@ public class KinesisToBigQuery {
     void setAwsSecretKey(String value);
 
 
-
     @Description("Name of the Kinesis Data Stream to read from")
     String getInputStreamName();
 
@@ -159,10 +159,16 @@ public class KinesisToBigQuery {
 
     void setInitialPositionInStream(String value);
 
-    @Description("gzip exist")
-    String getGzipYN();
 
-    void setGzipYN(String value);
+    @Description("Initial Position In Stream")
+    String getInitialTimestampInStream();
+
+    void setInitialTimestampInStream(String value);
+
+    @Description("gzip exist")
+    ValueProvider<String> getGzipYN();
+
+    void setGzipYN( ValueProvider<String> value);
 
     @Description("Table spec to write the output to")
     String getOutputTableSpec();
@@ -173,9 +179,9 @@ public class KinesisToBigQuery {
     @Description(
             "The dead-letter table to output to within BigQuery in <project-id>:<dataset>.<table> "
                     + "format. If it doesn't exist, it will be created during pipeline execution.")
-    ValueProvider<String> getOutputDeadletterTable();
+    String getOutputDeadletterTable();
 
-    void setOutputDeadletterTable(ValueProvider<String> value);
+    void setOutputDeadletterTable(String value);
 
   }
 
@@ -230,8 +236,8 @@ public class KinesisToBigQuery {
     }
 
 
-    //PCollectionTuple transformOut =
-     PCollection transformOut =
+    PCollectionTuple transformOut =
+     //PCollection transformOut =
               pipeline
                 .apply(
                     "kinesis stream source",
@@ -245,24 +251,26 @@ public class KinesisToBigQuery {
                         ParDo.of(
                             new DoFn<KinesisRecord, KV<String, String>>() {
                                 @ProcessElement
-                                public void processElement(@Element KinesisRecord record, OutputReceiver<KV<String, String>> out) {
+                                public void processElement(@Element KinesisRecord record, PipelineOptions pipe, OutputReceiver<KV<String, String>> out) {
                                      //KinesisRecord record = out.element();
                                       try {
 
-                                        if (options.getGzipYN() == "Y") {
-                                          out.output(
-                                                  KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
+                                        Options opts = pipe.as(Options.class);
+
+                                        if (opts.getGzipYN().equals("N") ) {
+                                          out.output( KV.of(record.getPartitionKey(), getStringFromByteArrayWithGzip(record.getDataAsBytes())));
+
 
                                         } else {
 
-                                          out.output(
-                                                  KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
+                                          out.output( KV.of(record.getPartitionKey(), new String(record.getDataAsBytes(), "UTF-8")));
                                         }
+
 
                                       } catch (Exception e) {
                                             LOG.warn("failed to parse event: {}", e.getLocalizedMessage());
                                       }
-                                    }
+                                }
 
                               private String getStringFromByteArrayWithGzip(byte[] dataAsBytes) {
                                 try {
@@ -282,9 +290,9 @@ public class KinesisToBigQuery {
                                 }
                                 return null;
                               }
-                              }))   ;
+                              }))
 
-                     //   .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
+                        .apply("ConvertMessageToTableRow", new MessageToTableRow(options));
      // LOG.info(transformOut.toString());
 
     /*

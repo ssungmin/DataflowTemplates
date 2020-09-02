@@ -171,17 +171,17 @@ public class KinesisToBigQuery {
     void setGzipYN( ValueProvider<String> value);
 
     @Description("Table spec to write the output to")
-    String getOutputTableSpec();
+    ValueProvider<String> getOutputTableSpec();
 
-    void setOutputTableSpec(String value);
+    void setOutputTableSpec(ValueProvider<String> value);
 
 
     @Description(
             "The dead-letter table to output to within BigQuery in <project-id>:<dataset>.<table> "
                     + "format. If it doesn't exist, it will be created during pipeline execution.")
-    String getOutputDeadletterTable();
+    ValueProvider<String> getOutputDeadletterTable();
 
-    void setOutputDeadletterTable(String value);
+    void setOutputDeadletterTable(ValueProvider<String> value);
 
   }
 
@@ -318,7 +318,7 @@ public class KinesisToBigQuery {
     /*
      * Step #4: Write failed records out to BigQuery
      */
-    /**
+
     PCollectionList.of(transformOut.get(UDF_DEADLETTER_OUT))
             .and(transformOut.get(TRANSFORM_DEADLETTER_OUT))
             .apply("Flatten", Flatten.pCollections())
@@ -331,7 +331,7 @@ public class KinesisToBigQuery {
                                             options.getOutputTableSpec(),
                                             DEFAULT_DEADLETTER_TABLE_SUFFIX))
                             .setErrorRecordsTableSchema(ResourceUtils.getDeadletterTableSchemaJson())
-                            .build()); **/
+                            .build());
     return pipeline.run();
   }
 
@@ -452,5 +452,91 @@ public class KinesisToBigQuery {
   }
 
 
+  /**
+   * The {@link KafkaToBigQuery.WriteKafkaMessageErrors} class is a transform which can be used to write messages
+   * which failed processing to an error records table. Each record is saved to the error table is
+   * enriched with the timestamp of that record and the details of the error including an error
+   * message and stacktrace for debugging.
+   */
+  @AutoValue
+  public abstract static class WriteKafkaMessageErrors
+          extends PTransform<PCollection<FailsafeElement<KV<String, String>, String>>, WriteResult> {
+
+    public abstract ValueProvider<String> getErrorRecordsTable();
+
+    public abstract String getErrorRecordsTableSchema();
+
+    public static KinesisToBigQuery.WriteKafkaMessageErrors.Builder newBuilder() {
+      return new AutoValue_KinesisToBigQuery_WriteKafkaMessageErrors.Builder();
+    }
+
+    /** Builder for {@link KinesisToBigQuery.WriteKafkaMessageErrors}. */
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract KinesisToBigQuery.WriteKafkaMessageErrors.Builder setErrorRecordsTable(ValueProvider<String> errorRecordsTable);
+
+      public abstract KinesisToBigQuery.WriteKafkaMessageErrors.Builder setErrorRecordsTableSchema(String errorRecordsTableSchema);
+
+      public abstract KinesisToBigQuery.WriteKafkaMessageErrors build();
+    }
+
+    @Override
+    public WriteResult expand(
+            PCollection<FailsafeElement<KV<String, String>, String>> failedRecords) {
+
+      return failedRecords
+              .apply("FailedRecordToTableRow", ParDo.of(new KafkaToBigQuery.FailedMessageToTableRowFn()))
+              .apply(
+                      "WriteFailedRecordsToBigQuery",
+                      BigQueryIO.writeTableRows()
+                              .to(getErrorRecordsTable())
+                              .withJsonSchema(getErrorRecordsTableSchema())
+                              .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                              .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+    }
+  }
+
+  /**
+   * The {@link KinesisToBigQuery.FailedMessageToTableRowFn} converts Kafka message which have failed processing into
+   * {@link TableRow} objects which can be output to a dead-letter table.
+   */
+  public static class FailedMessageToTableRowFn
+          extends DoFn<FailsafeElement<KV<String, String>, String>, TableRow> {
+
+    /**
+     * The formatter used to convert timestamps into a BigQuery compatible <a
+     * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#timestamp-type">format</a>.
+     */
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+            DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      FailsafeElement<KV<String, String>, String> failsafeElement = context.element();
+      final KV<String, String> message = failsafeElement.getOriginalPayload();
+
+      // Format the timestamp for insertion
+      String timestamp =
+              TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
+
+      // Build the table row
+      final TableRow failedRow =
+              new TableRow()
+                      .set("timestamp", timestamp)
+                      .set("errorMessage", failsafeElement.getErrorMessage())
+                      .set("stacktrace", failsafeElement.getStacktrace());
+
+      failedRow.set("payloadString", "")
+              .set("payloadBytes", "");
+      //Only set the payload if it's populated on the message.
+      // failedRow.set(
+      //         "payloadString",
+      //         "key: "
+      // + (message.getKey() == null ? "" : message.getKey())
+      //                 + "value: "
+      //                 + (message.getValue() == null ? "" : message.getValue()));
+      context.output(failedRow);
+    }
+  }
 
 }

@@ -499,6 +499,17 @@ public class KafkaIO {
       return toBuilder().setConsumerConfig(config).build();
     }
 
+
+    public Read<K, V> updateConsumerProperties2(ValueProvider<String> configUpdates) {
+      Map<String, Object> producerConfig = new HashMap<>();
+
+      for (String arg : configUpdates.toString().split(",")) {
+        producerConfig.put(arg.split("=", 2)[0].trim(), arg.split("=", 2)[1].trim());
+      }
+      Map<String, Object> config =
+              updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, producerConfig);
+      return toBuilder().setConsumerConfig(config).build();
+    }
     /**
      * Similar to {@link org.apache.beam.sdk.io.Read.Unbounded#withMaxNumRecords(long)}. Mainly used
      * for tests and demo applications.

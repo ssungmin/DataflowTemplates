@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.teleport.templates.PubsubToPubsub;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -500,7 +501,7 @@ public class KafkaIO {
     }
 
 
-    public Read<K, V> updateConsumerProperties2(ValueProvider<String> configUpdates) {
+    public Read<K, V> updateConsumerProperties2(ValueProvider<String> configUpdates ) {
       Map<String, Object> producerConfig = new HashMap<>();
 
       for (String arg : configUpdates.get().split(",")) {

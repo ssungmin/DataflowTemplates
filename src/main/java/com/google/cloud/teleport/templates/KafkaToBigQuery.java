@@ -157,9 +157,9 @@ public class KafkaToBigQuery {
     void setOutputDeadletterTable(ValueProvider<String> value);
 
     @Description("Kafka producer properties")
-    String getKafkaProducerConfig();
+    ValueProvider<String> getKafkaProducerConfig();
 
-    void setKafkaProducerConfig(String value);
+    void setKafkaProducerConfig(ValueProvider<String> value);
   }
 
   /**
@@ -216,7 +216,7 @@ public class KafkaToBigQuery {
 
     Map<String, Object> producerConfig = new HashMap<>();
 
-    for (String arg : options.getKafkaProducerConfig().split(",")) {
+    for (String arg : options.getKafkaProducerConfig().get().split(",")) {
       producerConfig.put(arg.split("=", 2)[0].trim(), arg.split("=", 2)[1].trim());
     }
 

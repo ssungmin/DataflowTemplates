@@ -235,7 +235,7 @@ public class KafkaToBigQuery {
                       .apply(
                               "ReadFromKafka",
                               KafkaIO.<String, String>read()
-                                      .updateConsumerProperties2(options.getKafkaProducerConfig())
+                                      .updateConsumerProperties2(options.getKafkaProducerConfig().get())
                                       .withBootstrapServers(options.getBootstrapServers())
                                       .withTopic(options.getInputTopic())
                                       .withKeyDeserializer(StringDeserializer.class)

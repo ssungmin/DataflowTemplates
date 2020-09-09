@@ -503,7 +503,7 @@ public class KafkaIO {
     public Read<K, V> updateConsumerProperties2(ValueProvider<String> configUpdates) {
       Map<String, Object> producerConfig = new HashMap<>();
 
-      for (String arg : configUpdates.toString().split(",")) {
+      for (String arg : configUpdates.get().split(",")) {
         producerConfig.put(arg.split("=", 2)[0].trim(), arg.split("=", 2)[1].trim());
       }
       Map<String, Object> config =

@@ -157,9 +157,9 @@ public class KafkaToBigQuery {
     void setOutputDeadletterTable(ValueProvider<String> value);
 
     @Description("Kafka producer properties")
-    ValueProvider<String> getKafkaProducerConfig();
+    String getKafkaProducerConfig();
 
-    void setKafkaProducerConfig(ValueProvider<String> value);
+    void setKafkaProducerConfig(String value);
   }
 
   /**
@@ -216,7 +216,7 @@ public class KafkaToBigQuery {
 
     Map<String, Object> producerConfig = new HashMap<>();
 
-    for (String arg : options.getKafkaProducerConfig().get().split(",")) {
+    for (String arg : options.getKafkaProducerConfig().split(",")) {
       producerConfig.put(arg.split("=", 2)[0].trim(), arg.split("=", 2)[1].trim());
     }
 
@@ -235,7 +235,7 @@ public class KafkaToBigQuery {
                       .apply(
                               "ReadFromKafka",
                               KafkaIO.<String, String>read()
-                                      .updateConsumerProperties2(options.getKafkaProducerConfig().get())
+                                      .updateConsumerProperties(producerConfig)
                                       .withBootstrapServers(options.getBootstrapServers())
                                       .withTopic(options.getInputTopic())
                                       .withKeyDeserializer(StringDeserializer.class)

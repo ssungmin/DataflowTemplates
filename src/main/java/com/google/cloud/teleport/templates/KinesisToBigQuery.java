@@ -236,6 +236,7 @@ public class KinesisToBigQuery {
     if (options.getInitialPositionInStream().equals("TRIM_HORIZON")) {
       initialPosition = InitialPositionInStream.TRIM_HORIZON;
     } else if(options.getInitialPositionInStream().equals("AT_TIMESTAMP")) {
+      initialPosition = InitialPositionInStream.AT_TIMESTAMP;
       inst = Instant.parse(options.getInitialTimestampInStream());
 
     }
